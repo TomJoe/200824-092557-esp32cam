@@ -18,11 +18,15 @@
 #define MAXLEN 64
 #define TOPICNAME esp32camera
 #define CONFIGNAME "/config.json"
+#define LOGFILENAME "/log"
 #define LOGLINE Serial.println("\n ------------- \n");
 Ticker ticker;
+
+const char version[] = "build "  __DATE__ " " __TIME__;
 char fullhostname[MAXLEN];
 char mqttTopic[MAXLEN];
-char mqqtMsg[MAXLEN];
+char mqttMsg[MAXLEN];
+char logMsg[MAXLEN];
 char mqtt_server[MAXLEN] = "192.168.0.20";
 char mqtt_port[6] = "1883";
 char hostname[MAXLEN] = "skyNETCam";
@@ -74,29 +78,33 @@ void setUpMqtt(){
       snprintf(mqttTopic, MAXLEN, "esp32camera/%s/MAC",hostname);
       uint8_t mac[6];
       WiFi.macAddress(mac);
-      snprintf(mqqtMsg, MAXLEN, "%02x-%02x-%02x-%02x-%02x-%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-      client.publish(mqttTopic,  mqqtMsg);
+      snprintf(mqttMsg, MAXLEN, "%02x-%02x-%02x-%02x-%02x-%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+      client.publish(mqttTopic,  mqttMsg);
       
       snprintf(mqttTopic, MAXLEN, "esp32camera/%s/UPTIME",hostname);
-      snprintf(mqqtMsg, MAXLEN, "%i", (millis() / 1000));
-      client.publish(mqttTopic,  mqqtMsg);
+      snprintf(mqttMsg, MAXLEN, "%i", (millis() / 1000));
+      client.publish(mqttTopic,  mqttMsg);
 
       snprintf(mqttTopic, MAXLEN, "esp32camera/%s/STREAMURL",hostname);
-      snprintf(mqqtMsg, MAXLEN, "http://%s:81/stream", WiFi.localIP().toString().c_str());
-      client.publish(mqttTopic,  mqqtMsg);
+      snprintf(mqttMsg, MAXLEN, "http://%s:81/stream", WiFi.localIP().toString().c_str());
+      client.publish(mqttTopic,  mqttMsg);
 
       snprintf(mqttTopic, MAXLEN, "esp32camera/%s/RSSI",hostname);
-      snprintf(mqqtMsg, MAXLEN, "%i", WiFi.RSSI());
-      client.publish(mqttTopic,  mqqtMsg);
+      snprintf(mqttMsg, MAXLEN, "%i", WiFi.RSSI());
+      client.publish(mqttTopic,  mqttMsg);
 
       snprintf(mqttTopic, MAXLEN, "esp32camera/%s/BSSSI",hostname);
-      snprintf(mqqtMsg, MAXLEN, "%i", WiFi.BSSIDstr());
-      client.publish(mqttTopic,  mqqtMsg);
+      snprintf(mqttMsg, MAXLEN, "%i", WiFi.BSSIDstr());
+      client.publish(mqttTopic,  mqttMsg);
 
 
       snprintf(mqttTopic, MAXLEN, "esp32camera/%s/SSID",hostname);
-      snprintf(mqqtMsg, MAXLEN, "%s", WiFi.SSID());
-      client.publish(mqttTopic,  mqqtMsg);
+      snprintf(mqttMsg, MAXLEN, "%s", WiFi.SSID());
+      client.publish(mqttTopic,  mqttMsg);
+
+      snprintf(mqttTopic, MAXLEN, "esp32camera/%s/VERSION",hostname);
+      snprintf(mqttMsg, MAXLEN, "%s", version);
+      client.publish(mqttTopic,  mqttMsg);
 
     } else {
       Serial.print("not connected to: "); Serial.println(mqtt_server);
@@ -264,6 +272,30 @@ void loadConfiguration() {
   Serial.println("---------------\n");
 }
 
+void logToFile(const char *  logtext){
+  File file = SPIFFS.open(LOGFILENAME, FILE_WRITE);
+  if (!file) {
+    Serial.println(F("Failed to create file"));
+    return;
+   }
+   file.println(logtext);
+}
+
+void whatHappened(){
+  File file = SPIFFS.open(LOGFILENAME, FILE_READ);
+  if (!file) {
+    Serial.println(F("Failed to open logfile"));
+    return;
+   }
+
+  while(file.available()){
+    String logLine = file.readStringUntil('\n');
+    snprintf(mqttTopic, MAXLEN, "esp32camera/%s/LOG",hostname);
+    snprintf(mqttMsg, MAXLEN, "%s", logLine.c_str());
+    client.publish(mqttTopic,  mqttMsg);
+   }
+}
+
 // Saves the configuration to a file
 void saveConfiguration() {
   LOGLINE
@@ -362,19 +394,21 @@ void setup() {
 
     setUpMqtt();
 
-    startCameraServer();
+    whatHappened();
 
-    listDir(SPIFFS,"/",1);
-    readFile(SPIFFS, CONFIGNAME);
+    startCameraServer();
 
     Serial.print("Camera Ready! Use 'http://");Serial.println(WiFi.localIP());
     Serial.print("or Stream under http://");Serial.print(WiFi.localIP());Serial.print(":81/stream");Serial.println("' to connect");
+
 
 
   } else {
     ESP.restart();
   }
 
+  snprintf(logMsg, MAXLEN, "initialized after %i seconds", (long) millis()/1000);
+  logToFile(logMsg);
   blink(5,10,100);
 }
 
@@ -386,8 +420,8 @@ void loop() {
   //client.publish("camrea", fullhostname);
   if(noStatusSinceSeconds++ > 10){
     snprintf(mqttTopic, MAXLEN, "esp32camera/%s/UPTIME",hostname);
-    snprintf(mqqtMsg, MAXLEN, "%i", (millis() / 1000));
-    client.publish(mqttTopic,  mqqtMsg);
+    snprintf(mqttMsg, MAXLEN, "%i", (millis() / 1000));
+    client.publish(mqttTopic,  mqttMsg);
     noStatusSinceSeconds = 0;
   }
 
@@ -398,6 +432,8 @@ void loop() {
     blink(1,1000,0);
     if (notConnectedSinceSeconds++ > 10) {
       Serial.printf("not connected since %i seconds.Rebooting...", notConnectedSinceSeconds);
+      snprintf(logMsg, MAXLEN, "restart: signal lost %i seconds", (long) millis()/1000);
+      logToFile(logMsg);
       ESP.restart();
     }
   }

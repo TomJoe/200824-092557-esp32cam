@@ -15,8 +15,9 @@
 #include "esp_timer.h"
 #include "esp_camera.h"
 #include "img_converters.h"
-#include "camera_index.h"
 #include "Arduino.h"
+#include "FS.h"
+#include "SPIFFS.h"
 
 #include "fb_gfx.h"
 
@@ -323,12 +324,26 @@ static esp_err_t status_handler(httpd_req_t *req){
 
 static esp_err_t index_handler(httpd_req_t *req){
     httpd_resp_set_type(req, "text/html");
-    httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+    //httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+
+    File indexFile = SPIFFS.open("/camera_index.html");
+    if(!indexFile){
+        Serial.println("Failed to open camara_index.html file for reading");
+        const char* errorResp = "error reading index.html";
+        return httpd_resp_send(req, errorResp, sizeof(errorResp));
+    }
+    String htmlRespond;
+    while(indexFile.available()){
+        htmlRespond += char(indexFile.read());
+    }
+    return httpd_resp_send(req, htmlRespond.c_str(), htmlRespond.length());
+    /*
     sensor_t * s = esp_camera_sensor_get();
     if (s->id.PID == OV3660_PID) {
         return httpd_resp_send(req, (const char *)index_ov3660_html_gz, index_ov3660_html_gz_len);
     }
     return httpd_resp_send(req, (const char *)index_ov2640_html_gz, index_ov2640_html_gz_len);
+    */
 }
 
 void startCameraServer(){
