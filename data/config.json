@@ -1,6 +1,6 @@
 {
 	"mqtt_server": "192.168.0.20",
-	"hostname": "CameraTree",
+	"hostname": "CameraHof",
 	"AP": "Corouscant",
 	"passwd": "MayTheForceBeWithYou"
 }

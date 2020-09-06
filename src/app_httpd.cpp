@@ -18,8 +18,11 @@
 #include "Arduino.h"
 #include "FS.h"
 #include "SPIFFS.h"
+#include "fileLogger.h"
 
 #include "fb_gfx.h"
+
+#define LOGFILENAME "/log"
 
 typedef struct {
         size_t size; //number of values used for filtering
@@ -88,6 +91,7 @@ static size_t jpg_encode_stream(void * arg, size_t index, const void* data, size
 }
 
 static esp_err_t capture_handler(httpd_req_t *req){
+    logToFile("capturing");
     camera_fb_t * fb = NULL;
     esp_err_t res = ESP_OK;
     int64_t fr_start = esp_timer_get_time();
@@ -141,6 +145,7 @@ static esp_err_t capture_handler(httpd_req_t *req){
 }
 
 static esp_err_t stream_handler(httpd_req_t *req){
+    logToFile("start stream");
     camera_fb_t * fb = NULL;
     esp_err_t res = ESP_OK;
     size_t _jpg_buf_len = 0;
@@ -162,7 +167,7 @@ static esp_err_t stream_handler(httpd_req_t *req){
 
         fb = esp_camera_fb_get();
         if (!fb) {
-            Serial.println("Camera capture failed");
+            Serial.println("Camera capture failed");          
             res = ESP_FAIL;
         } else {
 
@@ -323,12 +328,13 @@ static esp_err_t status_handler(httpd_req_t *req){
 }
 
 static esp_err_t index_handler(httpd_req_t *req){
+    logToFile("index_handler");
     httpd_resp_set_type(req, "text/html");
     //httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
 
     File indexFile = SPIFFS.open("/camera_index.html");
     if(!indexFile){
-        Serial.println("Failed to open camara_index.html file for reading");
+        logToFile("Failed to open camara_index.html file for reading");
         const char* errorResp = "error reading index.html";
         return httpd_resp_send(req, errorResp, sizeof(errorResp));
     }
@@ -336,6 +342,9 @@ static esp_err_t index_handler(httpd_req_t *req){
     while(indexFile.available()){
         htmlRespond += char(indexFile.read());
     }
+
+    indexFile.close();
+
     return httpd_resp_send(req, htmlRespond.c_str(), htmlRespond.length());
     /*
     sensor_t * s = esp_camera_sensor_get();
@@ -346,6 +355,36 @@ static esp_err_t index_handler(httpd_req_t *req){
     */
 }
 
+static esp_err_t logfile_handler(httpd_req_t *req){
+    File logFile = SPIFFS.open(LOGFILENAME);
+    if(!logFile){
+        Serial.println("Failed to open camara_index.html file for reading");
+        const char* errorResp = "Failed to open Logfile";
+        return httpd_resp_send(req, errorResp, sizeof(errorResp));
+    }
+    String htmlRespond;
+    htmlRespond = "<html><head><h1>Logfile ";
+    htmlRespond += uptime(millis());
+    htmlRespond += "</h1></head><body>\n";
+    while(logFile.available()){
+        htmlRespond += logFile.readStringUntil('\n');
+        htmlRespond += "<br>";
+    }
+    htmlRespond += "</body></html>\n";
+
+    logFile.close();
+
+    return httpd_resp_send(req, htmlRespond.c_str(), htmlRespond.length());
+}
+
+static esp_err_t dellog_handler(httpd_req_t *req){
+    SPIFFS.remove(LOGFILENAME);
+    logToFile("log deleted");
+    
+    String htmlRespond = "<html><head><body>Logfile deleted</body></html>\n";
+    return httpd_resp_send(req, htmlRespond.c_str(), htmlRespond.length());
+}
+
 void startCameraServer(){
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 
@@ -353,6 +392,20 @@ void startCameraServer(){
         .uri       = "/",
         .method    = HTTP_GET,
         .handler   = index_handler,
+        .user_ctx  = NULL
+    };
+
+    httpd_uri_t logfile_uri = {
+        .uri       = "/log",
+        .method    = HTTP_GET,
+        .handler   = logfile_handler,
+        .user_ctx  = NULL
+    };
+
+    httpd_uri_t dellog_uri = {
+        .uri       = "/dellog",
+        .method    = HTTP_GET,
+        .handler   = dellog_handler,
         .user_ctx  = NULL
     };
 
@@ -385,18 +438,20 @@ void startCameraServer(){
     };
 
     ra_filter_init(&ra_filter, 20);
-    
-    
+
     Serial.printf("Starting web server on port: '%d'\n", config.server_port);
     if (httpd_start(&camera_httpd, &config) == ESP_OK) {
         httpd_register_uri_handler(camera_httpd, &index_uri);
+        httpd_register_uri_handler(camera_httpd, &logfile_uri);
+        httpd_register_uri_handler(camera_httpd, &dellog_uri);
         httpd_register_uri_handler(camera_httpd, &cmd_uri);
         httpd_register_uri_handler(camera_httpd, &status_uri);
-        httpd_register_uri_handler(camera_httpd, &capture_uri);       
+        httpd_register_uri_handler(camera_httpd, &capture_uri);      
     }
 
     config.server_port += 1;
     config.ctrl_port += 1;
+    config.task_priority = tskIDLE_PRIORITY + 1;
     Serial.printf("Starting stream server on port: '%d'\n", config.server_port);
     if (httpd_start(&stream_httpd, &config) == ESP_OK) {
         httpd_register_uri_handler(stream_httpd, &stream_uri);
