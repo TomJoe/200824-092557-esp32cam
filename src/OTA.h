@@ -9,9 +9,7 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 
-#include "fileLogger.h"
-
-
+#include "stuff.h"
 
 void setupOTA(const char* hostname) {
 

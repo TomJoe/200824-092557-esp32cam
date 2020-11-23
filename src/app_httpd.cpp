@@ -18,7 +18,7 @@
 #include "Arduino.h"
 #include "FS.h"
 #include "SPIFFS.h"
-#include "fileLogger.h"
+#include "stuff.h"
 
 #include "fb_gfx.h"
 
@@ -355,6 +355,13 @@ static esp_err_t index_handler(httpd_req_t *req){
     */
 }
 
+static esp_err_t restart_handler(httpd_req_t *req){
+    logToFile("shall restart");
+    httpd_resp_set_type(req, "text/text");
+    setEspShallRestart(true);
+    return httpd_resp_send(req, "restarting ESP", 14);
+}
+
 static esp_err_t logfile_handler(httpd_req_t *req){
     File logFile = SPIFFS.open(LOGFILENAME);
     if(!logFile){
@@ -402,6 +409,13 @@ void startCameraServer(){
         .user_ctx  = NULL
     };
 
+    httpd_uri_t restart_uri = {
+        .uri       = "/restart",
+        .method    = HTTP_GET,
+        .handler   = restart_handler,
+        .user_ctx  = NULL
+    };
+
     httpd_uri_t dellog_uri = {
         .uri       = "/dellog",
         .method    = HTTP_GET,
@@ -444,6 +458,7 @@ void startCameraServer(){
         httpd_register_uri_handler(camera_httpd, &index_uri);
         httpd_register_uri_handler(camera_httpd, &logfile_uri);
         httpd_register_uri_handler(camera_httpd, &dellog_uri);
+        httpd_register_uri_handler(camera_httpd, &restart_uri);
         httpd_register_uri_handler(camera_httpd, &cmd_uri);
         httpd_register_uri_handler(camera_httpd, &status_uri);
         httpd_register_uri_handler(camera_httpd, &capture_uri);      

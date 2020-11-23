@@ -14,8 +14,7 @@
 #include <PubSubClient.h>
 #include <Ticker.h>
 #include <NTPClient.h>
-#include "fileLogger.h"
-//#include <Timelib.h>
+#include "stuff.h"
 
 #define MAXLEN 64
 #define TOPICNAME esp32camera
@@ -25,6 +24,7 @@
 Ticker ticker;
 
 const char version[] = "build "  __DATE__ " " __TIME__;
+
 char fullhostname[MAXLEN];
 char mqttTopic[MAXLEN];
 char mqttMsg[MAXLEN];
@@ -230,6 +230,18 @@ void setupCamera(){
 #endif
 }
 
+
+void setUpNTP(){
+  WiFiUDP ntpUDP;
+  NTPClient ntpclient(ntpUDP);
+  ntpclient.begin();
+  ntpclient.update();
+  logToFile(ntpclient.getFormattedTime());
+  setStartTime(ntpclient.getEpochTime());
+  ntpclient.end();
+  ntpUDP.stop();
+}
+
 // Loads the configuration from a file
 void loadConfiguration() {
   // Open file for reading
@@ -352,6 +364,9 @@ void setup() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("");
     Serial.println("WiFi connected");
+
+    setUpNTP();
+
     notConnectedSinceSeconds = 0;
 
     setupOTA(fullhostname);
@@ -374,6 +389,7 @@ void setup() {
 
 void loop() {
   ArduinoOTA.handle();
+  //ntpclient.update();
 
   if(!client.connected()){
     logToFile("mqtt-Connection lost. Trying to reconnect...");
@@ -418,5 +434,8 @@ void loop() {
       ESP.restart();
     }
   }
-
+  if(getEspShallRestart()){
+    logToFile("restarting ESP");
+    ESP.restart();
+  }
 }
