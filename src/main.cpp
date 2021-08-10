@@ -365,7 +365,7 @@ void setup() {
     Serial.println("");
     Serial.println("WiFi connected");
 
-    setUpNTP();
+    //setUpNTP();
 
     notConnectedSinceSeconds = 0;
 
