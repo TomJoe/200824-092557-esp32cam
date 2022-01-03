@@ -22,10 +22,10 @@ bool getEspShallRestart(){
     return espShallRestart;
 }
 
-String epochToTimeString(unsigned long offset){
+char *epochToTimeString(unsigned long offset){
     time_t t = startTime + offset / 1000;
-    char timestring[30];
-    sprintf(timestring, "%4i-%2i-%2i-%2i-%2i-%2i-%4i", (int) year(t),month(t),day(t),hour(t),minute(t),second(t),offset%1000);
+    static char timestring[30];
+    sprintf(timestring, "%4.4i-%2.2i-%2.2i %2.2i:%2.2i:%2.2i.%4.4i", year(t),month(t),day(t),hour(t),minute(t),second(t),(int) offset%1000);
     return timestring;
 }
 

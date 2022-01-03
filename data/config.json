@@ -2,5 +2,5 @@
 	"mqtt_server": "192.168.0.20",
 	"hostname": "CameraHof",
 	"AP": "Corouscant",
-	"passwd": "MayTheForceBeWithYou"
+	"passwd": "MayTheForceBeWithYou!42"
 }

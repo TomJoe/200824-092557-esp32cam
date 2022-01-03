@@ -19,6 +19,7 @@
 #include "FS.h"
 #include "SPIFFS.h"
 #include "stuff.h"
+#include "camera_index.h"
 
 #include "fb_gfx.h"
 
@@ -167,7 +168,8 @@ static esp_err_t stream_handler(httpd_req_t *req){
 
         fb = esp_camera_fb_get();
         if (!fb) {
-            Serial.println("Camera capture failed");          
+            Serial.println("Camera capture failed"); 
+            logToFile("Camera capture failed");         
             res = ESP_FAIL;
         } else {
 
@@ -330,8 +332,9 @@ static esp_err_t status_handler(httpd_req_t *req){
 static esp_err_t index_handler(httpd_req_t *req){
     logToFile("index_handler");
     httpd_resp_set_type(req, "text/html");
-    //httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+    httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
 
+    /*
     File indexFile = SPIFFS.open("/camera_index.html");
     if(!indexFile){
         logToFile("Failed to open camara_index.html file for reading");
@@ -346,13 +349,16 @@ static esp_err_t index_handler(httpd_req_t *req){
     indexFile.close();
 
     return httpd_resp_send(req, htmlRespond.c_str(), htmlRespond.length());
-    /*
+    */
+    
     sensor_t * s = esp_camera_sensor_get();
+    /*
     if (s->id.PID == OV3660_PID) {
         return httpd_resp_send(req, (const char *)index_ov3660_html_gz, index_ov3660_html_gz_len);
     }
-    return httpd_resp_send(req, (const char *)index_ov2640_html_gz, index_ov2640_html_gz_len);
     */
+    return httpd_resp_send(req, (const char *)index_ov2640_html_gz, index_ov2640_html_gz_len);
+    
 }
 
 static esp_err_t restart_handler(httpd_req_t *req){
@@ -370,9 +376,10 @@ static esp_err_t logfile_handler(httpd_req_t *req){
         return httpd_resp_send(req, errorResp, sizeof(errorResp));
     }
     String htmlRespond;
-    htmlRespond = "<html><head><h1>Logfile ";
+    htmlRespond = "<html><head><h1>Logfile</h1><br>";
+    htmlRespond += "<b>Uptime: ";
     htmlRespond += uptime(millis());
-    htmlRespond += "</h1></head><body>\n";
+    htmlRespond += "<br></b></head><body>\n";
     while(logFile.available()){
         htmlRespond += logFile.readStringUntil('\n');
         htmlRespond += "<br>";

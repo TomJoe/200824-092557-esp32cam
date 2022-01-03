@@ -236,8 +236,10 @@ void setUpNTP(){
   NTPClient ntpclient(ntpUDP);
   ntpclient.begin();
   ntpclient.update();
+  logToFile("Connected to NTP");
   logToFile(ntpclient.getFormattedTime());
   setStartTime(ntpclient.getEpochTime());
+  logToFile("<- got this");
   ntpclient.end();
   ntpUDP.stop();
 }
@@ -340,7 +342,7 @@ void setup() {
     Serial.println(F("Failed to initialize SD library.. fomartting"));
     delay(1000);
   }
-  snprintf(logMsg, MAXLEN, "powered up after %i milliseconds", (int) millis());
+  snprintf(logMsg, MAXLEN, "<b>powered up after %i milliseconds</b>", (int) millis());
   logToFile(logMsg);
   blink(2,10,100);
 
@@ -365,7 +367,7 @@ void setup() {
     Serial.println("");
     Serial.println("WiFi connected");
 
-    //setUpNTP();
+    setUpNTP();
 
     notConnectedSinceSeconds = 0;
 
