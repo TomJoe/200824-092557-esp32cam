@@ -33,6 +33,7 @@ char logMsg[MAXLEN];
 char mqtt_server[MAXLEN] = "192.168.0.20";
 char mqtt_port[6] = "1883";
 bool portalEntered = false;
+bool setUpMQTT = false;
 
 int notConnectedSinceSeconds;
 int noStatusSinceSeconds;
@@ -224,6 +225,9 @@ void setupCamera(){
   //drop down frame size for higher initial frame rate
   s->set_framesize(s, FRAMESIZE_XGA);
 
+  //set gainceiling a bit higher..
+  s->set_gainceiling(s, GAINCEILING_128X);
+
 #if defined(CAMERA_MODEL_M5STACK_WIDE)
   s->set_vflip(s, 1);
   s->set_hmirror(s, 1);
@@ -373,7 +377,7 @@ void setup() {
 
     setupOTA(fullhostname);
 
-    setUpMqtt();
+    if(setUpMQTT) {setUpMqtt();} else {logToFile("skipping MQTT-Setup");};
 
     startCameraServer();
 
@@ -393,7 +397,7 @@ void loop() {
   ArduinoOTA.handle();
   //ntpclient.update();
 
-  if(!client.connected()){
+  if(setUpMQTT && !client.connected()){
     logToFile("mqtt-Connection lost. Trying to reconnect...");
     if(!client.connect(fullhostname)){
       logToFile("...reconnect failed");
@@ -406,7 +410,7 @@ void loop() {
   delay(1000);
   Serial.print(".");
   
-  if(noStatusSinceSeconds++ > 10){
+  if(setUpMQTT && noStatusSinceSeconds++ > 10){
     snprintf(mqttTopic, MAXLEN, "esp32camera/%s/UPTIME",fullhostname);
     snprintf(mqttMsg, MAXLEN, "%i", (int) (millis() / 1000));
     client.publish(mqttTopic,  mqttMsg);

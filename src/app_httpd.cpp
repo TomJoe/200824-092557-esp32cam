@@ -20,6 +20,7 @@
 #include "SPIFFS.h"
 #include "stuff.h"
 #include "camera_index.h"
+#include <WiFi.h>
 
 #include "fb_gfx.h"
 
@@ -291,6 +292,7 @@ static esp_err_t cmd_handler(httpd_req_t *req){
 }
 
 static esp_err_t status_handler(httpd_req_t *req){
+    logToFile("Status handler");
     static char json_response[1024];
 
     sensor_t * s = esp_camera_sensor_get();
@@ -329,8 +331,8 @@ static esp_err_t status_handler(httpd_req_t *req){
     return httpd_resp_send(req, json_response, strlen(json_response));
 }
 
-static esp_err_t index_handler(httpd_req_t *req){
-    logToFile("index_handler");
+static esp_err_t config_handler(httpd_req_t *req){
+    logToFile("config_handler");
     httpd_resp_set_type(req, "text/html");
     httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
 
@@ -351,8 +353,9 @@ static esp_err_t index_handler(httpd_req_t *req){
     return httpd_resp_send(req, htmlRespond.c_str(), htmlRespond.length());
     */
     
-    sensor_t * s = esp_camera_sensor_get();
     /*
+    sensor_t * s = esp_camera_sensor_get();
+    
     if (s->id.PID == OV3660_PID) {
         return httpd_resp_send(req, (const char *)index_ov3660_html_gz, index_ov3660_html_gz_len);
     }
@@ -391,6 +394,64 @@ static esp_err_t logfile_handler(httpd_req_t *req){
     return httpd_resp_send(req, htmlRespond.c_str(), htmlRespond.length());
 }
 
+static esp_err_t index_handler(httpd_req_t *req){
+
+    sensor_t * s = esp_camera_sensor_get();
+
+    String htmlRespond;
+    htmlRespond  = "<html><head><h1>Camera Info</h1></head><body>\n";
+    htmlRespond += "<p>\n";
+    htmlRespond += "<a href=\"/log\">view LogFile</a><br>\n";
+    htmlRespond += "<a href=\"/config\">config Camera</a><br>\n";
+    htmlRespond += "<a href=\"/restart\">restart ESP</a><br>\n";
+    htmlRespond += "<a href=\"/dellog\">delete Logfile</a><br>\n";
+    htmlRespond += "<a href=\"../:81/stream\">viewSteam</a><br>\n";
+
+    htmlRespond += "<p>\n";
+
+    htmlRespond += "<table>\n";
+    htmlRespond += (String)"<tr><th>Uptime</th><th>" +  uptime(millis()) + "</th>\n";
+    htmlRespond += (String)"<tr><th>BSSID</th><th>" + WiFi.BSSIDstr() + "</th>\n";
+    htmlRespond += (String)"<tr><th>RSSI</th><th>" + WiFi.RSSI() + "</th>\n";
+    htmlRespond += (String)"<tr><th>SSID</th><th>" + WiFi.SSID() + "</th>\n";  
+    htmlRespond += (String)"<tr><th>FreeHeap</th><th>" + ESP.getFreeHeap() + "</th>\n";
+    
+    htmlRespond += (String)"<tr><th>SPIFFS totalBytes</th><th>" + SPIFFS.totalBytes() + "</th>\n";
+    htmlRespond += (String)"<tr><th>SPIFFS usedBytes</th><th>" + SPIFFS.usedBytes() + "</th>\n";
+
+    htmlRespond += (String)"<tr><th>framesize</th><th>" + s->status.framesize + "</th>\n";
+    htmlRespond += (String)"<tr><th>quality</th><th>" + s->status.quality + "</th>\n";
+    htmlRespond += (String)"<tr><th>brightness</th><th>" + s->status.brightness + "</th>\n";
+    htmlRespond += (String)"<tr><th>contrast</th><th>" + s->status.contrast + "</th>\n";
+    htmlRespond += (String)"<tr><th>saturation</th><th>" + s->status.saturation + "</th>\n";
+    htmlRespond += (String)"<tr><th>sharpness</th><th>" + s->status.sharpness + "</th>\n";
+    htmlRespond += (String)"<tr><th>special_effect</th><th>" + s->status.special_effect + "</th>\n";
+    htmlRespond += (String)"<tr><th>wb_mode</th><th>" + s->status.wb_mode + "</th>\n";
+    htmlRespond += (String)"<tr><th>awb</th><th>" + s->status.awb + "</th>\n";
+    htmlRespond += (String)"<tr><th>awb_gain</th><th>" + s->status.awb_gain + "</th>\n";
+    htmlRespond += (String)"<tr><th>aec</th><th>" + s->status.aec + "</th>\n";
+    htmlRespond += (String)"<tr><th>aec2</th><th>" + s->status.aec2 + "</th>\n";
+    htmlRespond += (String)"<tr><th>ae_level</th><th>" + s->status.ae_level + "</th>\n";
+    htmlRespond += (String)"<tr><th>aec_value</th><th>" + s->status.aec_value + "</th>\n";
+    htmlRespond += (String)"<tr><th>agc</th><th>" + s->status.agc + "</th>\n";
+    htmlRespond += (String)"<tr><th>agc_gain</th><th>" + s->status.agc_gain + "</th>\n";
+    htmlRespond += (String)"<tr><th>gainceiling</th><th>" + s->status.gainceiling + "</th>\n";
+    htmlRespond += (String)"<tr><th>bpc</th><th>" + s->status.bpc + "</th>\n";
+    htmlRespond += (String)"<tr><th>wpc</th><th>" + s->status.wpc + "</th>\n";
+    htmlRespond += (String)"<tr><th>raw_gma</th><th>" + s->status.raw_gma + "</th>\n";
+    htmlRespond += (String)"<tr><th>lenc</th><th>" + s->status.lenc + "</th>\n";
+    htmlRespond += (String)"<tr><th>vflip</th><th>" + s->status.vflip + "</th>\n";
+    htmlRespond += (String)"<tr><th>hmirror</th><th>" + s->status.hmirror + "</th>\n";
+    htmlRespond += (String)"<tr><th>dcw</th><th>" + s->status.dcw + "</th>\n";
+    htmlRespond += (String)"<tr><th>colorbar</th><th>" + s->status.colorbar + "</th>\n";
+    
+    htmlRespond += "</table>\n";
+    htmlRespond += "</body></html>\n";
+
+    return httpd_resp_send(req, htmlRespond.c_str(), htmlRespond.length());
+}
+
+
 static esp_err_t dellog_handler(httpd_req_t *req){
     SPIFFS.remove(LOGFILENAME);
     logToFile("log deleted");
@@ -402,10 +463,10 @@ static esp_err_t dellog_handler(httpd_req_t *req){
 void startCameraServer(){
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 
-    httpd_uri_t index_uri = {
-        .uri       = "/",
+    httpd_uri_t config_uri = {
+        .uri       = "/config",
         .method    = HTTP_GET,
-        .handler   = index_handler,
+        .handler   = config_handler,
         .user_ctx  = NULL
     };
 
@@ -413,6 +474,13 @@ void startCameraServer(){
         .uri       = "/log",
         .method    = HTTP_GET,
         .handler   = logfile_handler,
+        .user_ctx  = NULL
+    };
+
+    httpd_uri_t index_uri = {
+        .uri       = "/",
+        .method    = HTTP_GET,
+        .handler   = index_handler,
         .user_ctx  = NULL
     };
 
@@ -462,8 +530,9 @@ void startCameraServer(){
 
     Serial.printf("Starting web server on port: '%d'\n", config.server_port);
     if (httpd_start(&camera_httpd, &config) == ESP_OK) {
-        httpd_register_uri_handler(camera_httpd, &index_uri);
+        httpd_register_uri_handler(camera_httpd, &config_uri);
         httpd_register_uri_handler(camera_httpd, &logfile_uri);
+        httpd_register_uri_handler(camera_httpd, &index_uri);
         httpd_register_uri_handler(camera_httpd, &dellog_uri);
         httpd_register_uri_handler(camera_httpd, &restart_uri);
         httpd_register_uri_handler(camera_httpd, &cmd_uri);
