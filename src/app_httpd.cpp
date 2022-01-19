@@ -293,39 +293,8 @@ static esp_err_t cmd_handler(httpd_req_t *req){
 
 static esp_err_t status_handler(httpd_req_t *req){
     logToFile("Status handler");
-    static char json_response[1024];
+    static char *json_response = getJsonStatus();
 
-    sensor_t * s = esp_camera_sensor_get();
-    char * p = json_response;
-    *p++ = '{';
-
-    p+=sprintf(p, "\"framesize\":%u,", s->status.framesize);
-    p+=sprintf(p, "\"quality\":%u,", s->status.quality);
-    p+=sprintf(p, "\"brightness\":%d,", s->status.brightness);
-    p+=sprintf(p, "\"contrast\":%d,", s->status.contrast);
-    p+=sprintf(p, "\"saturation\":%d,", s->status.saturation);
-    p+=sprintf(p, "\"sharpness\":%d,", s->status.sharpness);
-    p+=sprintf(p, "\"special_effect\":%u,", s->status.special_effect);
-    p+=sprintf(p, "\"wb_mode\":%u,", s->status.wb_mode);
-    p+=sprintf(p, "\"awb\":%u,", s->status.awb);
-    p+=sprintf(p, "\"awb_gain\":%u,", s->status.awb_gain);
-    p+=sprintf(p, "\"aec\":%u,", s->status.aec);
-    p+=sprintf(p, "\"aec2\":%u,", s->status.aec2);
-    p+=sprintf(p, "\"ae_level\":%d,", s->status.ae_level);
-    p+=sprintf(p, "\"aec_value\":%u,", s->status.aec_value);
-    p+=sprintf(p, "\"agc\":%u,", s->status.agc);
-    p+=sprintf(p, "\"agc_gain\":%u,", s->status.agc_gain);
-    p+=sprintf(p, "\"gainceiling\":%u,", s->status.gainceiling);
-    p+=sprintf(p, "\"bpc\":%u,", s->status.bpc);
-    p+=sprintf(p, "\"wpc\":%u,", s->status.wpc);
-    p+=sprintf(p, "\"raw_gma\":%u,", s->status.raw_gma);
-    p+=sprintf(p, "\"lenc\":%u,", s->status.lenc);
-    p+=sprintf(p, "\"vflip\":%u,", s->status.vflip);
-    p+=sprintf(p, "\"hmirror\":%u,", s->status.hmirror);
-    p+=sprintf(p, "\"dcw\":%u,", s->status.dcw);
-    p+=sprintf(p, "\"colorbar\":%u,", s->status.colorbar);
-    *p++ = '}';
-    *p++ = 0;
     httpd_resp_set_type(req, "application/json");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     return httpd_resp_send(req, json_response, strlen(json_response));
@@ -371,6 +340,13 @@ static esp_err_t restart_handler(httpd_req_t *req){
     return httpd_resp_send(req, "restarting ESP", 14);
 }
 
+static esp_err_t wificonfig_handler(httpd_req_t *req){
+    logToFile("start wifiConfig");
+    httpd_resp_set_type(req, "text/text");
+    setStartConfigPortal(true);
+    return httpd_resp_send(req, "starting ConfigPortal", 22);
+}
+
 static esp_err_t logfile_handler(httpd_req_t *req){
     File logFile = SPIFFS.open(LOGFILENAME);
     if(!logFile){
@@ -399,54 +375,7 @@ static esp_err_t index_handler(httpd_req_t *req){
     sensor_t * s = esp_camera_sensor_get();
 
     String htmlRespond;
-    htmlRespond  = "<html><head><h1>Camera Info</h1></head><body>\n";
-    htmlRespond += "<p>\n";
-    htmlRespond += "<a href=\"/log\">view LogFile</a><br>\n";
-    htmlRespond += "<a href=\"/config\">config Camera</a><br>\n";
-    htmlRespond += "<a href=\"/restart\">restart ESP</a><br>\n";
-    htmlRespond += "<a href=\"/dellog\">delete Logfile</a><br>\n";
-    htmlRespond += "<a href=\"../:81/stream\">viewSteam</a><br>\n";
-
-    htmlRespond += "<p>\n";
-
-    htmlRespond += "<table>\n";
-    htmlRespond += (String)"<tr><th>Uptime</th><th>" +  uptime(millis()) + "</th>\n";
-    htmlRespond += (String)"<tr><th>BSSID</th><th>" + WiFi.BSSIDstr() + "</th>\n";
-    htmlRespond += (String)"<tr><th>RSSI</th><th>" + WiFi.RSSI() + "</th>\n";
-    htmlRespond += (String)"<tr><th>SSID</th><th>" + WiFi.SSID() + "</th>\n";  
-    htmlRespond += (String)"<tr><th>FreeHeap</th><th>" + ESP.getFreeHeap() + "</th>\n";
-    
-    htmlRespond += (String)"<tr><th>SPIFFS totalBytes</th><th>" + SPIFFS.totalBytes() + "</th>\n";
-    htmlRespond += (String)"<tr><th>SPIFFS usedBytes</th><th>" + SPIFFS.usedBytes() + "</th>\n";
-
-    htmlRespond += (String)"<tr><th>framesize</th><th>" + s->status.framesize + "</th>\n";
-    htmlRespond += (String)"<tr><th>quality</th><th>" + s->status.quality + "</th>\n";
-    htmlRespond += (String)"<tr><th>brightness</th><th>" + s->status.brightness + "</th>\n";
-    htmlRespond += (String)"<tr><th>contrast</th><th>" + s->status.contrast + "</th>\n";
-    htmlRespond += (String)"<tr><th>saturation</th><th>" + s->status.saturation + "</th>\n";
-    htmlRespond += (String)"<tr><th>sharpness</th><th>" + s->status.sharpness + "</th>\n";
-    htmlRespond += (String)"<tr><th>special_effect</th><th>" + s->status.special_effect + "</th>\n";
-    htmlRespond += (String)"<tr><th>wb_mode</th><th>" + s->status.wb_mode + "</th>\n";
-    htmlRespond += (String)"<tr><th>awb</th><th>" + s->status.awb + "</th>\n";
-    htmlRespond += (String)"<tr><th>awb_gain</th><th>" + s->status.awb_gain + "</th>\n";
-    htmlRespond += (String)"<tr><th>aec</th><th>" + s->status.aec + "</th>\n";
-    htmlRespond += (String)"<tr><th>aec2</th><th>" + s->status.aec2 + "</th>\n";
-    htmlRespond += (String)"<tr><th>ae_level</th><th>" + s->status.ae_level + "</th>\n";
-    htmlRespond += (String)"<tr><th>aec_value</th><th>" + s->status.aec_value + "</th>\n";
-    htmlRespond += (String)"<tr><th>agc</th><th>" + s->status.agc + "</th>\n";
-    htmlRespond += (String)"<tr><th>agc_gain</th><th>" + s->status.agc_gain + "</th>\n";
-    htmlRespond += (String)"<tr><th>gainceiling</th><th>" + s->status.gainceiling + "</th>\n";
-    htmlRespond += (String)"<tr><th>bpc</th><th>" + s->status.bpc + "</th>\n";
-    htmlRespond += (String)"<tr><th>wpc</th><th>" + s->status.wpc + "</th>\n";
-    htmlRespond += (String)"<tr><th>raw_gma</th><th>" + s->status.raw_gma + "</th>\n";
-    htmlRespond += (String)"<tr><th>lenc</th><th>" + s->status.lenc + "</th>\n";
-    htmlRespond += (String)"<tr><th>vflip</th><th>" + s->status.vflip + "</th>\n";
-    htmlRespond += (String)"<tr><th>hmirror</th><th>" + s->status.hmirror + "</th>\n";
-    htmlRespond += (String)"<tr><th>dcw</th><th>" + s->status.dcw + "</th>\n";
-    htmlRespond += (String)"<tr><th>colorbar</th><th>" + s->status.colorbar + "</th>\n";
-    
-    htmlRespond += "</table>\n";
-    htmlRespond += "</body></html>\n";
+    htmlRespond = serverIndex;
 
     return httpd_resp_send(req, htmlRespond.c_str(), htmlRespond.length());
 }
@@ -526,11 +455,18 @@ void startCameraServer(){
         .user_ctx  = NULL
     };
 
+    httpd_uri_t wificonfig_uri = {
+        .uri       = "/wificonfig",
+        .method    = HTTP_GET,
+        .handler   = wificonfig_handler,
+        .user_ctx  = NULL
+    };
     ra_filter_init(&ra_filter, 20);
 
     Serial.printf("Starting web server on port: '%d'\n", config.server_port);
     if (httpd_start(&camera_httpd, &config) == ESP_OK) {
         httpd_register_uri_handler(camera_httpd, &config_uri);
+        httpd_register_uri_handler(camera_httpd, &wificonfig_uri);
         httpd_register_uri_handler(camera_httpd, &logfile_uri);
         httpd_register_uri_handler(camera_httpd, &index_uri);
         httpd_register_uri_handler(camera_httpd, &dellog_uri);

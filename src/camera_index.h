@@ -275,7 +275,73 @@ const uint8_t index_ov2640_html_gz[] = {
  0x7F, 0x22, 0xF6, 0x5F, 0x04, 0x9C, 0x39, 0x76, 0x5C, 0x6C, 0x00, 0x00
 };
 
+String serverIndex = 
+"<!doctype html>"
+"<html>"
+    "<head>"
+        "<meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<title>EPS32 Cam Satus</title>"
+        "<style>"
+            "body {"
+                "font-family: Arial,Helvetica,sans-serif;"
+                "background: #181818;"
+                "color: #EFEFEF;"
+                "font-size: 16px"
+            "}"
+            "h2 {"
+                "font-size: 18px"
+            "}"
+        "</style>"
+    "</head>"
+    "<body>"
+        "<a href=\"/log\">view LogFile</a><br>\n"
+        "<a href=\"/config\">config Camera</a><br>\n"
+        "<a href=\"/restart\">restart ESP</a><br>\n"
+        "<a href=\"/dellog\">delete Logfile</a><br>\n"
+        "<a href=\"/wificonfig\">start WifiConfig</a><br>\n"
+        "<p>\n"
+        "<div id=\"myData\"></div>"
+        "<script>"
+            "fetch('/status')"
+                ".then(function (response) {"
+                    "return response.json();"
+                "})"
+                ".then(function (data) {"
+                    "appendData(data);"
+                "})"
+                ".catch(function (err) {"
+                    "console.log('error: ' + err);"
+                "});"
 
+            "function appendData(data) {"
+                "var mainContainer = document.getElementById(\"myData\");"
+                "var tbl = document.createElement(\"table\");"
+                "var tblBody = document.createElement(\"tbody\");"
+
+                "for (var key in data) {"
+                    "if (data.hasOwnProperty(key)) {"
+                        "var row = document.createElement(\"tr\");"
+                        
+                        "var cell = document.createElement(\"td\");"
+                        "var cellText = document.createTextNode(key);"
+                        "cell.append(cellText);"
+                        "row.append(cell);"
+
+                        "var cell = document.createElement(\"td\");"
+                        "var cellText = document.createTextNode(data[key]);"
+                        "cell.append(cellText);"
+                        "row.append(cell);"
+
+                        "tblBody.appendChild(row);"
+                    "}"
+                "}"
+                "tbl.appendChild(tblBody);"
+                "mainContainer.appendChild(tbl);"
+            "}"
+        "</script>"
+    "</body>"
+"</html>";
 //File: index_ov3660.html.gz, Size: 4408
 /*
 #define index_ov3660_html_gz_len 4408
